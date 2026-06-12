@@ -1,54 +1,5 @@
 import SwiftUI
 
-enum AppTheme {
-    enum Spacing {
-        static let xSmall: CGFloat = 4
-        static let small: CGFloat = 8
-        static let medium: CGFloat = 16
-        static let large: CGFloat = 24
-        static let xLarge: CGFloat = 32
-    }
-
-    enum Radius {
-        static let card: CGFloat = 20
-        static let button: CGFloat = 16
-    }
-
-    static let primaryGradient = LinearGradient(
-        colors: [
-            Color(red: 0.18, green: 0.42, blue: 0.90),
-            Color(red: 0.48, green: 0.28, blue: 0.86)  
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    static let screenBackground = Color(.systemGroupedBackground)
-    static let cardBackground = Color(.secondarySystemGroupedBackground)
-}
-
-struct CardStyle: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(AppTheme.Spacing.large)
-            .background(AppTheme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.card, style: .continuous))
-            .shadow(color: .black.opacity(0.06), radius: 14, x: 0, y: 6)
-    }
-}
-
-extension View {
-    func unstuckCardStyle() -> some View {
-        modifier(CardStyle())
-    }
-}
-
-struct ContentView: View {
-    var body: some View {
-        HomeView()
-    }
-}
-
 struct HomeView: View {
     @EnvironmentObject private var authService: AuthService
     @EnvironmentObject private var sessionStore: SessionStore
@@ -182,57 +133,8 @@ private struct SecondaryActionButtonStyle: ButtonStyle {
     }
 }
 
-struct CheckInPlaceholderView: View {
-    var body: some View {
-        PlaceholderScreenView(title: "Short Check-In")
-    }
-}
-
-struct MainFormPlaceholderView: View {
-    var body: some View {
-        PlaceholderScreenView(title: "Main Form")
-    }
-}
-
-struct PastSessionsPlaceholderView: View {
-    var body: some View {
-        PlaceholderScreenView(title: "Past Sessions")
-    }
-}
-
-struct SettingsPlaceholderView: View {
-    var body: some View {
-        PlaceholderScreenView(title: "Settings")
-    }
-}
-
-struct PlaceholderScreenView: View {
-    let title: String
-
-    var body: some View {
-        VStack(spacing: AppTheme.Spacing.medium) {
-            Image(systemName: "arrow.up.circle")
-                .font(.system(size: 36, weight: .semibold))
-                .foregroundStyle(AppTheme.primaryGradient)
-
-            Text(title)
-                .font(.title2.weight(.semibold))
-
-            Text("This screen will be built in a later step.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(AppTheme.Spacing.large)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppTheme.screenBackground)
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
 #Preview {
-    ContentView()
+    HomeView()
         .environmentObject(AuthService())
         .environmentObject(SessionStore())
         .environmentObject(StreakStore())
