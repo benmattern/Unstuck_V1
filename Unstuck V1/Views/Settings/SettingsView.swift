@@ -6,6 +6,8 @@ struct SettingsView: View {
     @EnvironmentObject private var sessionStore: SessionStore
     @EnvironmentObject private var streakStore: StreakStore
     @EnvironmentObject private var appearanceStore: AppearanceStore
+    @EnvironmentObject private var profileStore: ProfileStore
+    @State private var displayNameDraft = ""
     @State private var showingDeleteSessionsConfirmation = false
     @State private var showingResetStreakConfirmation = false
 
@@ -23,6 +25,22 @@ struct SettingsView: View {
         .background(AppTheme.screenBackground)
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .task(id: authService.currentUser?.id) {
+            guard let userId = authService.currentUser?.id else {
+                profileStore.clear()
+                return
+            }
+
+            await profileStore.loadProfile(userId: userId)
+            displayNameDraft = profileStore.profile?.displayName ?? ""
+
+            if let preferredTheme = profileStore.profile?.preferredTheme {
+                appearanceStore.applyProfileTheme(preferredTheme)
+            }
+        }
+        .onChange(of: profileStore.profile?.displayName) { _, displayName in
+            displayNameDraft = displayName ?? ""
+        }
         .alert("Delete all sessions?", isPresented: $showingDeleteSessionsConfirmation) {
             Button("Delete All Sessions", role: .destructive) {
                 sessionStore.deleteAllSessions()
@@ -41,6 +59,26 @@ struct SettingsView: View {
         } message: {
             Text("This clears your current streak and completed-today status.")
         }
+    }
+
+    private var appearanceSelection: Binding<AppAppearance> {
+        Binding(
+            get: { appearanceStore.appearance },
+            set: { newAppearance in
+                appearanceStore.appearance = newAppearance
+
+                guard let userId = authService.currentUser?.id else {
+                    return
+                }
+
+                Task {
+                    await profileStore.updatePreferredTheme(
+                        userId: userId,
+                        appearance: newAppearance
+                    )
+                }
+            }
+        )
     }
 
     private var appInfoCard: some View {
@@ -88,7 +126,7 @@ struct SettingsView: View {
             AppCard {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                        Text("Signed in as")
+                        Text("Email")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
@@ -97,6 +135,42 @@ struct SettingsView: View {
                             .foregroundStyle(.primary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+                        Text("Display Name")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        TextField("Display name", text: $displayNameDraft)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled()
+                            .padding(AppTheme.Spacing.medium)
+                            .background(Color(.tertiarySystemGroupedBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.button, style: .continuous))
+                    }
+
+                    if let errorMessage = profileStore.errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+
+                    Button {
+                        guard let userId = authService.currentUser?.id else {
+                            return
+                        }
+
+                        Task {
+                            await profileStore.updateDisplayName(
+                                userId: userId,
+                                displayName: displayNameDraft
+                            )
+                        }
+                    } label: {
+                        PrimaryButton(profileStore.isLoading ? "Saving..." : "Save Display Name", systemImage: "person.crop.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(profileStore.isLoading)
 
                     Button {
                         Task {
@@ -116,7 +190,7 @@ struct SettingsView: View {
             SectionHeader("Appearance", subtitle: "Choose how Unstuck follows your device display.")
 
             AppCard {
-                Picker("Appearance", selection: $appearanceStore.appearance) {
+                Picker("Appearance", selection: appearanceSelection) {
                     ForEach(AppAppearance.allCases) { appearance in
                         Text(appearance.displayName)
                             .tag(appearance)
@@ -148,5 +222,6 @@ struct SettingsView: View {
             .environmentObject(SessionStore())
             .environmentObject(StreakStore())
             .environmentObject(AppearanceStore())
+            .environmentObject(ProfileStore())
     }
 }

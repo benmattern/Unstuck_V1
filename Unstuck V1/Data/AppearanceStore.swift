@@ -16,6 +16,14 @@ final class AppearanceStore: ObservableObject {
         self.appearance = Self.loadAppearance(from: userDefaults, key: appearanceKey)
     }
 
+    func applyProfileTheme(_ preferredTheme: String) {
+        appearance = AppAppearance(rawValue: preferredTheme) ?? .system
+    }
+
+    func resetToSystem() {
+        appearance = .system
+    }
+
     private func persistAppearance() {
         userDefaults.set(appearance.rawValue, forKey: appearanceKey)
     }

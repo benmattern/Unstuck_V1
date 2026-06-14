@@ -51,8 +51,7 @@ final class SessionStore: ObservableObject {
             persistSessions()
             errorMessage = nil
         } catch {
-            loadCachedSessions()
-            errorMessage = "Unable to load Supabase sessions. Showing cached sessions."
+            errorMessage = "Unable to load Supabase sessions."
             print("Supabase session load failed: \(error)")
         }
     }

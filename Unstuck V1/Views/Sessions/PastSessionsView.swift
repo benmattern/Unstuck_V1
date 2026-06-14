@@ -24,6 +24,12 @@ struct PastSessionsView: View {
         .background(AppTheme.screenBackground)
         .navigationTitle("Past Sessions")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await sessionStore.loadSessionsFromSupabase()
+        }
+        .refreshable {
+            await sessionStore.loadSessionsFromSupabase()
+        }
     }
 
     private var emptyState: some View {
