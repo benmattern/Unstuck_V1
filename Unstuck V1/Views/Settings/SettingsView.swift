@@ -203,12 +203,19 @@ struct SettingsView: View {
 
     private var notificationsSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
-            SectionHeader("Notifications", subtitle: "Set a simple daily reminder.")
+            SectionHeader("Notifications", subtitle: "Manage Supabase-backed reminders.")
+
+            NavigationLink {
+                NotificationSchedulesView()
+            } label: {
+                SecondaryButton("Notification Schedules", systemImage: "bell.badge")
+            }
+            .buttonStyle(.plain)
 
             NavigationLink {
                 NotificationSettingsView()
             } label: {
-                SecondaryButton("Daily Reminder", systemImage: "bell")
+                SecondaryButton("Legacy Daily Reminder", systemImage: "bell")
             }
             .buttonStyle(.plain)
         }
@@ -223,5 +230,6 @@ struct SettingsView: View {
             .environmentObject(StreakStore())
             .environmentObject(AppearanceStore())
             .environmentObject(ProfileStore())
+            .environmentObject(NotificationScheduleStore())
     }
 }

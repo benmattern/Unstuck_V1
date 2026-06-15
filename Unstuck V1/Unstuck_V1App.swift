@@ -15,6 +15,7 @@ struct Unstuck_V1App: App {
     @StateObject private var streakStore = StreakStore()
     @StateObject private var appearanceStore = AppearanceStore()
     @StateObject private var profileStore = ProfileStore()
+    @StateObject private var notificationScheduleStore = NotificationScheduleStore()
 
     var body: some Scene {
         WindowGroup {
@@ -34,6 +35,7 @@ struct Unstuck_V1App: App {
             .environmentObject(streakStore)
             .environmentObject(appearanceStore)
             .environmentObject(profileStore)
+            .environmentObject(notificationScheduleStore)
             .preferredColorScheme(appearanceStore.appearance.colorScheme)
             .onChange(of: authService.currentUser?.id) { _, userId in
                 handleAuthUserChange(userId)
@@ -50,6 +52,7 @@ struct Unstuck_V1App: App {
         guard let userId else {
             sessionStore.clearInMemorySessions()
             profileStore.clear()
+            notificationScheduleStore.clear()
             appearanceStore.resetToSystem()
             return
         }
@@ -59,6 +62,7 @@ struct Unstuck_V1App: App {
         Task {
             await sessionStore.loadSessionsFromSupabase()
             await profileStore.loadProfile(userId: userId)
+            await notificationScheduleStore.loadSchedules(userId: userId)
 
             if let preferredTheme = profileStore.profile?.preferredTheme {
                 appearanceStore.applyProfileTheme(preferredTheme)
