@@ -1,10 +1,10 @@
 # Unstuck iOS Recovery Prompt
 
-Use this prompt to catch up another AI or coding session.
+Use this prompt to catch up another AI or coding session on the current Unstuck iOS app.
 
 ## Project
 
-Unstuck iOS is a SwiftUI/Xcode app backed by Supabase. The iOS app is the primary platform for the current POC. A React/TypeScript/Vite web app shares the same Supabase backend.
+Unstuck iOS is a SwiftUI/Xcode app backed by Supabase. The iOS app is currently the primary platform. A React/TypeScript/Vite web app shares the same Supabase backend and should eventually reach feature parity.
 
 ## Current Stack
 
@@ -12,27 +12,48 @@ Unstuck iOS is a SwiftUI/Xcode app backed by Supabase. The iOS app is the primar
 - SwiftUI
 - Xcode
 - Supabase Swift
-- Supabase Auth
-- Supabase Postgres with RLS
 
-## Current POC Goal
+## Current Features
 
-Demonstrate:
+- Authentication
+- Profile sync
+- User-scoped theme preferences
+- Short Check-In
+- Main Form
+- Session history
+- Session detail
+- Session sync with Supabase
+- Insights
+- Notifications
+- Settings
+- Streak tracking
 
-1. Multiple authenticated users.
-2. Shared Supabase backend.
-3. iOS app and web app both reading/writing user data.
-4. User-specific data isolation through RLS.
-5. Scheduled notifications on iOS.
+## Backend Integration
 
-## Current Backend
+Supabase is configured with:
 
-Supabase project is configured with:
-
-- Supabase Auth
+- `auth.users`
 - `profiles`
 - `sessions`
-- RLS policies for user-specific access
+- Row Level Security
+
+Current data flow:
+
+```text
+Auth
+↓
+Profiles
+↓
+Sessions
+```
+
+Supabase Auth provides the user id. The app then loads the matching profile row and user-owned session rows. RLS is expected to enforce User A/User B isolation.
+
+## Tables
+
+### `auth.users`
+
+Supabase Auth owns authenticated user identity. iOS reads the current user from the Supabase Auth session.
 
 ### `profiles`
 
@@ -45,12 +66,11 @@ Fields:
 - `created_at timestamptz`
 - `updated_at timestamptz`
 
-iOS currently:
+iOS uses `profiles` for:
 
-- Loads the authenticated user's profile.
-- Edits `display_name`.
-- Reads and writes `preferred_theme`.
-- Supports `preferred_theme` values: `system`, `light`, `dark`.
+- Display name sync
+- Preferred theme sync
+- User-scoped settings
 
 ### `sessions`
 
@@ -62,35 +82,21 @@ Fields:
 - `answers_json jsonb`
 - `created_at timestamptz`
 
-iOS currently:
+iOS uses `sessions` for:
 
-- Saves completed sessions to Supabase.
-- Loads authenticated user sessions from Supabase.
-- Displays Past Sessions and Session Detail.
-- Calculates Insights from loaded sessions.
-
-## Current iOS Features
-
-- Auth
-- Profile sync
-- User-scoped theme preferences
-- Short Check-In
-- Main Form
-- Session Summary before save
-- Session history
+- Saving completed Short Check-In sessions
+- Saving completed Main Form sessions
+- Loading authenticated session history
 - Session detail
-- Session sync with Supabase
-- Insights
-- Notifications
-- Settings
-- Streak tracking
+- Insights calculations
 
 ## Important Current Files
 
 ### App Root
 
 - `Unstuck V1/Unstuck V1/Unstuck_V1App.swift`
-  - Creates and injects stores.
+  - Creates root stores.
+  - Injects environment objects.
   - Routes between loading, auth, and home.
   - Loads sessions and profile after auth.
   - Applies profile theme.
@@ -109,132 +115,212 @@ iOS currently:
   - Updates display name.
   - Updates preferred theme.
 
+- `Data/SessionStore.swift`
+  - Publishes sessions.
+  - Saves local session copy.
+  - Calls Supabase session sync service.
+
 - `Services/SessionSyncService.swift`
   - Saves sessions to Supabase.
   - Loads sessions from Supabase.
   - Converts flexible `answers_json` shapes into local `Session` models.
 
-- `Data/SessionStore.swift`
-  - Publishes sessions.
-  - Saves local copy.
-  - Calls Supabase sync service.
+### Profile System
 
-### Theme/Streak
+- `Models/Profile.swift`
+  - Maps `profiles` with snake_case coding keys.
 
-- `Theme/AppAppearance.swift`
-  - `system`, `light`, `dark`.
+- `Data/ProfileStore.swift`
+  - Owns profile load/update state.
 
 - `Data/AppearanceStore.swift`
-  - Applies profile theme.
+  - Applies `profiles.preferred_theme` locally.
   - Resets to `.system` on sign-out.
   - Keeps local fallback.
 
-- `Data/StreakStore.swift`
-  - Local user-scoped streak state.
-  - Uses user-specific UserDefaults keys.
+- `Theme/AppAppearance.swift`
+  - Defines `system`, `light`, and `dark`.
 
-### Views
+- `Views/Settings/SettingsView.swift`
+  - Shows account email.
+  - Edits display name.
+  - Updates preferred theme.
+  - Handles sign-out entry point.
 
-- `Views/Auth/AuthView.swift`
+### Forms/Sessions
+
+- `Data/SampleForms.swift`
+  - Short Check-In and Main Form definitions.
+
+- `Views/CheckIn/CheckInFlowView.swift`
+  - One-question-at-a-time form flow.
+
+- `Views/CheckIn/SessionSummaryView.swift`
+  - Review answers before save.
+
+- `Views/Sessions/PastSessionsView.swift`
+  - Supabase-backed session history.
+  - Refreshes on appear and pull-to-refresh.
+
+- `Views/Sessions/SessionDetailView.swift`
+  - Displays saved questions and answers.
+
+### Other App Areas
+
 - `Views/Home/HomeView.swift`
 - `Views/Home/ActionCard.swift`
-- `Views/CheckIn/CheckInFlowView.swift`
-- `Views/CheckIn/SessionSummaryView.swift`
-- `Views/Sessions/PastSessionsView.swift`
-- `Views/Sessions/SessionDetailView.swift`
 - `Views/Insights/InsightsView.swift`
-- `Views/Settings/SettingsView.swift`
 - `Views/Settings/NotificationSettingsView.swift`
+- `Services/NotificationManager.swift`
+- `Data/StreakStore.swift`
 - `Views/Shared/*`
 
-## Current Startup Flow
+## Current File/Folder Structure Overview
+
+```text
+Unstuck V1/
+  Unstuck V1/
+    Data/
+      AppearanceStore.swift
+      ProfileStore.swift
+      SampleForms.swift
+      SessionStore.swift
+      StreakStore.swift
+    Models/
+      Answer.swift
+      FormDefinition.swift
+      FormQuestion.swift
+      Profile.swift
+      Session.swift
+      StreakState.swift
+      SupabaseSessionRecord.swift
+    Services/
+      AuthService.swift
+      NotificationManager.swift
+      SessionSyncService.swift
+    Theme/
+      AppAppearance.swift
+      AppTheme.swift
+    Views/
+      Auth/
+      CheckIn/
+      Home/
+      Insights/
+      Sessions/
+      Settings/
+      Shared/
+    ContentView.swift
+    Supabase.swift
+    Unstuck_V1App.swift
+```
+
+## Current App Startup Flow
 
 1. App launches.
-2. `AuthService` attempts Supabase session restore.
-3. If unauthenticated, show `AuthView`.
-4. If authenticated, show `HomeView`.
-5. App root handles current user id:
-   - Configure streak for user.
+2. `AuthService` attempts Supabase Auth session restore.
+3. Root view shows loading while restore is in progress.
+4. If unauthenticated, root shows `AuthView`.
+5. If authenticated, root shows `HomeView`.
+6. App root handles the current user id:
+   - Configure `StreakStore`.
    - Clear in-memory sessions.
    - Load Supabase sessions.
    - Load Supabase profile.
    - Apply `profile.preferred_theme`.
 
-## Current Auth Flow
+## Auth Flow
 
 1. User signs in with email/password.
-2. Supabase Auth returns a session.
-3. `AuthService.currentUser` is set.
-4. App root loads user-scoped data.
-5. On sign-out:
-   - Supabase signs out.
-   - Current user clears.
-   - Sessions clear.
-   - Profile clears.
-   - Streak user scope clears.
-   - Appearance resets to `.system`.
+2. `AuthService.signIn(email:password:)` calls Supabase Auth.
+3. Supabase returns a session.
+4. `AuthService.currentUser` is set.
+5. App root loads user-scoped profile and sessions.
 
-## Current Profile Flow
+On sign-out:
 
-1. App root calls `ProfileStore.loadProfile(userId:)`.
-2. `ProfileStore` selects the matching row from `profiles`.
-3. Settings displays email, display name, and appearance.
-4. Display name save updates `profiles.display_name`.
-5. Appearance picker updates `profiles.preferred_theme`.
+1. `AuthService.signOut()` calls Supabase Auth.
+2. `currentUser` clears.
+3. In-memory sessions clear.
+4. Profile state clears.
+5. Appearance resets to `.system`.
+6. Streak store de-scopes from the previous user.
 
-## Current Session Sync Flow
+## Profile Loading Flow
 
-1. User completes a form.
-2. `SessionSummaryView` shows answered questions.
-3. Save creates a local session and inserts a Supabase row.
-4. Past Sessions refreshes from Supabase on appear and pull-to-refresh.
-5. RLS ensures User A only sees User A rows and User B only sees User B rows.
+1. Auth user id becomes available.
+2. `ProfileStore.loadProfile(userId:)` selects from `profiles`.
+3. `ProfileStore.profile` publishes the profile.
+4. `AppearanceStore.applyProfileTheme(...)` applies `preferred_theme`.
+5. Settings displays email, display name, and appearance.
 
-## Known Answer Storage Mismatch
+Display name sync:
 
-iOS currently writes `answers_json` as a dictionary keyed by question id with object values containing:
+1. User edits display name in Settings.
+2. `ProfileStore.updateDisplayName(userId:displayName:)` updates `profiles.display_name`.
 
-- `question_id`
-- `question_prompt`
-- `answer_value`
+Preferred theme sync:
 
-The web app has a normalization layer and may produce or handle other shapes, including:
+1. User changes appearance in Settings.
+2. `AppearanceStore` updates immediately.
+3. `ProfileStore.updatePreferredTheme(userId:appearance:)` updates `profiles.preferred_theme`.
 
-- Array of objects with prompt/answer
-- Dictionary keyed by question id
-- Existing iOS shape
+## Session Synchronization Flow
 
-iOS currently has tolerant decoding in `SessionSyncService` so web-created sessions can display. This should be standardized later.
+1. User completes Short Check-In or Main Form.
+2. `SessionSummaryView` displays answers before save.
+3. Save creates a local session.
+4. `SessionSyncService` inserts the session into Supabase `sessions`.
+5. `PastSessionsView` refreshes from Supabase on appear and pull-to-refresh.
+6. `SessionSyncService` converts rows into local `Session` models.
+7. Session history, detail, and insights read from `SessionStore.sessions`.
 
-Backlog reference:
+## Known Technical Debt
 
-- `UN-ARCH-001 Standardize session answer storage`
+### UN-ARCH-001
 
-## Backlog References
+Standardize session answer storage.
 
-- `UN-ARCH-001 Standardize session answer storage`
-- `UN-ARCH-002 Shared form definition system`
-- `UN-ARCH-003 Canonical form engine design`
-- `UN-PROFILE-001 Move streak/completed_today to backend`
+Current mismatch:
+
+- iOS writes `answers_json` as a dictionary keyed by question id.
+- Web uses a normalization layer and may handle array/object forms.
+- iOS currently tolerates multiple shapes in `SessionSyncService`.
+
+### UN-ARCH-002
+
+Shared form definition system.
+
+Form definitions currently live locally in iOS and separately in web. The product needs a shared definition source to prevent drift.
+
+### UN-ARCH-003
+
+Canonical form engine design.
+
+The product needs one canonical design for form rendering, validation, answer summaries, and answer serialization.
+
+### UN-PROFILE-001
+
+Move streak/completed_today from local storage to backend.
+
+Current streak state is local and user-scoped. It should eventually live in Supabase so it follows users across iOS and web.
 
 ## Constraints For Future Work
 
+- Do not modify Supabase schema unless explicitly requested.
+- Do not modify RLS unless explicitly requested.
 - Do not edit `.pbxproj` directly while Xcode is open.
-- Prefer Xcode tools for reads/writes/builds.
-- Do not change Supabase schema unless explicitly requested.
-- Do not change RLS unless explicitly requested.
+- Prefer Xcode tools for project reads/writes/builds.
 - Keep the POC simple.
-- Avoid adding forms/questions/answers tables until explicitly requested.
-- Keep `answers_json` for the POC until `UN-ARCH-001`.
-- Preserve notification functionality.
+- Preserve notifications.
 - Preserve User A/User B isolation.
+- Keep `answers_json` for the POC until `UN-ARCH-001` is addressed.
 
-## Current Recovery Task Guidance
+## Recovery Guidance
 
-When resuming work:
+When resuming implementation:
 
 1. Inspect current files before editing.
-2. Keep changes narrowly scoped.
-3. Build with Xcode after edits.
-4. If touching a view that uses environment objects, update previews.
-5. If changing profile/session sync, verify sign-in/sign-out user isolation.
+2. Keep changes narrowly scoped to the requested task.
+3. If adding environment object requirements, update previews.
+4. If touching profile/session sync, verify sign-in, sign-out, User A/User B isolation, and web/iOS consistency.
+5. Build with Xcode after app source changes.
