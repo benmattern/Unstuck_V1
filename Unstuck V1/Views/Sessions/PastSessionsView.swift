@@ -1,6 +1,8 @@
+import Supabase
 import SwiftUI
 
 struct PastSessionsView: View {
+    @EnvironmentObject private var authService: AuthService
     @EnvironmentObject private var sessionStore: SessionStore
 
     var body: some View {
@@ -24,12 +26,20 @@ struct PastSessionsView: View {
         .background(AppTheme.screenBackground)
         .navigationTitle("Past Sessions")
         .navigationBarTitleDisplayMode(.inline)
-        .task {
-            await sessionStore.loadSessionsFromSupabase()
+        .task(id: authService.currentUser?.id) {
+            await loadSessionsIfAuthenticated()
         }
         .refreshable {
-            await sessionStore.loadSessionsFromSupabase()
+            await loadSessionsIfAuthenticated()
         }
+    }
+
+    private func loadSessionsIfAuthenticated() async {
+        guard authService.currentUser?.id != nil else {
+            return
+        }
+
+        await sessionStore.loadSessionsFromSupabase()
     }
 
     private var emptyState: some View {
@@ -56,7 +66,7 @@ struct PastSessionsView: View {
 #Preview {
     NavigationStack {
         PastSessionsView()
-            .environmentObject(AuthService())
+            .environmentObject(AuthService(restoreSessionOnInit: false))
             .environmentObject(SessionStore())
             .environmentObject(StreakStore())
             .environmentObject(AppearanceStore())

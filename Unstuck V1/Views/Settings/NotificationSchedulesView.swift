@@ -1,6 +1,40 @@
 import Supabase
 import SwiftUI
 
+private enum NotificationScheduleDateHelpers {
+    static var defaultDailyTime: Date {
+        var components = DateComponents()
+        components.hour = 8
+        components.minute = 0
+        return Calendar.current.date(from: components) ?? Date()
+    }
+
+    static func timeString(from date: Date) -> String {
+        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d:00", components.hour ?? 0, components.minute ?? 0)
+    }
+
+    static func date(fromScheduledTime scheduledTime: String?) -> Date {
+        guard let scheduledTime else {
+            return defaultDailyTime
+        }
+
+        let parts = scheduledTime.split(separator: ":").compactMap { Int($0) }
+        guard parts.count >= 2 else {
+            return defaultDailyTime
+        }
+
+        var components = DateComponents()
+        components.hour = parts[0]
+        components.minute = parts[1]
+        return Calendar.current.date(from: components) ?? defaultDailyTime
+    }
+
+    static func displayTime(from scheduledTime: String?) -> String {
+        date(fromScheduledTime: scheduledTime).formatted(date: .omitted, time: .shortened)
+    }
+}
+
 struct NotificationSchedulesView: View {
     @EnvironmentObject private var authService: AuthService
     @EnvironmentObject private var notificationScheduleStore: NotificationScheduleStore
@@ -8,16 +42,10 @@ struct NotificationSchedulesView: View {
     @State private var scheduleType: NotificationScheduleType = .daily
     @State private var formType: NotificationScheduleFormType = .shortCheckIn
     @State private var oneTimeDate = Date().addingTimeInterval(3600)
-    @State private var dailyTime = Self.defaultDailyTime
+    @State private var dailyTime = NotificationScheduleDateHelpers.defaultDailyTime
     @State private var isEnabled = true
+    @State private var editingSchedule: NotificationSchedule?
     @State private var statusMessage: String?
-
-    private static var defaultDailyTime: Date {
-        var components = DateComponents()
-        components.hour = 8
-        components.minute = 0
-        return Calendar.current.date(from: components) ?? Date()
-    }
 
     var body: some View {
         ScrollView {
@@ -43,6 +71,12 @@ struct NotificationSchedulesView: View {
         }
         .refreshable {
             await loadSchedules()
+        }
+        .sheet(item: $editingSchedule) { schedule in
+            EditNotificationScheduleView(schedule: schedule) { message in
+                statusMessage = message
+            }
+            .environmentObject(notificationScheduleStore)
         }
     }
 
@@ -130,32 +164,42 @@ struct NotificationSchedulesView: View {
     private func scheduleRow(_ schedule: NotificationSchedule) -> some View {
         AppCard {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
-                HStack(alignment: .top, spacing: AppTheme.Spacing.medium) {
-                    VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                        Text(schedule.title)
-                            .font(.headline)
+                Button {
+                    editingSchedule = schedule
+                } label: {
+                    HStack(alignment: .top, spacing: AppTheme.Spacing.medium) {
+                        VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+                            Text(schedule.title)
+                                .font(.headline)
+                                .foregroundStyle(.primary)
 
-                        Text(schedule.formType.displayName)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            Text(schedule.formType.displayName)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
 
-                        Text(scheduleDescription(schedule))
-                            .font(.footnote)
+                            Text(scheduleDescription(schedule))
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Toggle(
-                        "Enabled",
-                        isOn: Binding(
-                            get: { schedule.isEnabled },
-                            set: { newValue in
-                                updateSchedule(schedule, isEnabled: newValue)
-                            }
-                        )
-                    )
-                    .labelsHidden()
                 }
+                .buttonStyle(.plain)
+
+                Toggle(
+                    "Enabled",
+                    isOn: Binding(
+                        get: { schedule.isEnabled },
+                        set: { newValue in
+                            updateSchedule(schedule, isEnabled: newValue)
+                        }
+                    )
+                )
+                .font(.subheadline.weight(.semibold))
 
                 Button(role: .destructive) {
                     deleteSchedule(schedule)
@@ -186,7 +230,7 @@ struct NotificationSchedulesView: View {
             ? "Unstuck Reminder"
             : title.trimmingCharacters(in: .whitespacesAndNewlines)
         let scheduledAt = scheduleType == .oneTime ? oneTimeDate : nil
-        let scheduledTime = scheduleType == .daily ? timeString(from: dailyTime) : nil
+        let scheduledTime = scheduleType == .daily ? NotificationScheduleDateHelpers.timeString(from: dailyTime) : nil
 
         Task {
             await notificationScheduleStore.createSchedule(
@@ -234,41 +278,141 @@ struct NotificationSchedulesView: View {
 
             return "One-time: \(scheduledAt.formatted(date: .abbreviated, time: .shortened))"
         case .daily:
-            return "Daily: \(displayTime(from: schedule.scheduledTime))"
+            return "Daily: \(NotificationScheduleDateHelpers.displayTime(from: schedule.scheduledTime))"
         }
     }
 
-    private func timeString(from date: Date) -> String {
-        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
-        return String(format: "%02d:%02d:00", components.hour ?? 0, components.minute ?? 0)
+}
+
+private struct EditNotificationScheduleView: View {
+    let schedule: NotificationSchedule
+    let onStatus: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var notificationScheduleStore: NotificationScheduleStore
+    @State private var title: String
+    @State private var scheduleType: NotificationScheduleType
+    @State private var formType: NotificationScheduleFormType
+    @State private var oneTimeDate: Date
+    @State private var dailyTime: Date
+    @State private var isEnabled: Bool
+
+    init(schedule: NotificationSchedule, onStatus: @escaping (String) -> Void) {
+        self.schedule = schedule
+        self.onStatus = onStatus
+        _title = State(initialValue: schedule.title)
+        _scheduleType = State(initialValue: schedule.scheduleType)
+        _formType = State(initialValue: schedule.formType)
+        _oneTimeDate = State(initialValue: schedule.scheduledAt ?? Date().addingTimeInterval(3600))
+        _dailyTime = State(initialValue: NotificationScheduleDateHelpers.date(fromScheduledTime: schedule.scheduledTime))
+        _isEnabled = State(initialValue: schedule.isEnabled)
     }
 
-    private func displayTime(from scheduledTime: String?) -> String {
-        guard let scheduledTime else {
-            return "No time set"
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.large) {
+                    SectionHeader("Edit Reminder", subtitle: "Update when this reminder appears.")
+                    editCard
+                }
+                .padding(AppTheme.Spacing.large)
+            }
+            .background(AppTheme.screenBackground)
+            .navigationTitle("Edit Reminder")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
         }
+    }
 
-        let parts = scheduledTime.split(separator: ":").compactMap { Int($0) }
-        guard parts.count >= 2 else {
-            return scheduledTime
+    private var editCard: some View {
+        AppCard {
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
+                TextField("Title", text: $title)
+                    .textInputAutocapitalization(.words)
+                    .padding(AppTheme.Spacing.medium)
+                    .background(Color(.tertiarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.button, style: .continuous))
+
+                Picker("Schedule", selection: $scheduleType) {
+                    ForEach(NotificationScheduleType.allCases) { type in
+                        Text(type.displayName)
+                            .tag(type)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Picker("Form", selection: $formType) {
+                    ForEach(NotificationScheduleFormType.allCases) { type in
+                        Text(type.displayName)
+                            .tag(type)
+                    }
+                }
+
+                if scheduleType == .oneTime {
+                    DatePicker(
+                        "Date and Time",
+                        selection: $oneTimeDate,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                } else {
+                    DatePicker(
+                        "Time",
+                        selection: $dailyTime,
+                        displayedComponents: .hourAndMinute
+                    )
+                }
+
+                Toggle("Enabled", isOn: $isEnabled)
+
+                Button {
+                    saveChanges()
+                } label: {
+                    PrimaryButton(notificationScheduleStore.isLoading ? "Saving..." : "Save Changes", systemImage: "checkmark.circle.fill")
+                }
+                .buttonStyle(.plain)
+                .disabled(notificationScheduleStore.isLoading)
+            }
         }
+    }
 
-        var components = DateComponents()
-        components.hour = parts[0]
-        components.minute = parts[1]
+    private func saveChanges() {
+        let scheduleTitle = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "Unstuck Reminder"
+            : title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let scheduledAt = scheduleType == .oneTime ? oneTimeDate : nil
+        let scheduledTime = scheduleType == .daily
+            ? NotificationScheduleDateHelpers.timeString(from: dailyTime)
+            : nil
 
-        guard let date = Calendar.current.date(from: components) else {
-            return scheduledTime
+        Task {
+            await notificationScheduleStore.updateSchedule(
+                schedule,
+                title: scheduleTitle,
+                isEnabled: isEnabled,
+                scheduleType: scheduleType,
+                scheduledAt: scheduledAt,
+                scheduledTime: scheduledTime,
+                formType: formType
+            )
+
+            await MainActor.run {
+                onStatus(notificationScheduleStore.errorMessage ?? "Notification schedule updated.")
+                dismiss()
+            }
         }
-
-        return date.formatted(date: .omitted, time: .shortened)
     }
 }
 
 #Preview {
     NavigationStack {
         NotificationSchedulesView()
-            .environmentObject(AuthService())
+            .environmentObject(AuthService(restoreSessionOnInit: false))
             .environmentObject(NotificationScheduleStore())
     }
 }

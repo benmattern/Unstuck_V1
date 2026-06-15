@@ -19,9 +19,9 @@ struct HomeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.large) {
                     header
-                    ActionCard()
-                    progressCard
-                    actionButtons
+                    todaySection
+                    reviewSection
+                    manageSection
                 }
                 .padding(AppTheme.Spacing.large)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -50,6 +50,14 @@ struct HomeView: View {
         .padding(.top, AppTheme.Spacing.large)
     }
 
+    private var todaySection: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
+            SectionHeader("Today")
+            ActionCard()
+            progressCard
+        }
+    }
+
     private var progressCard: some View {
         AppCard {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.large) {
@@ -76,20 +84,8 @@ struct HomeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var actionButtons: some View {
-        VStack(spacing: AppTheme.Spacing.medium) {
-            NavigationLink {
-                CheckInFlowView(form: SampleForms.shortCheckIn)
-            } label: {
-                PrimaryButton("Start Short Check-In", systemImage: "arrow.up.circle.fill")
-            }
-
-            NavigationLink {
-                CheckInFlowView(form: SampleForms.mainForm)
-            } label: {
-                SecondaryButton("Start Main Form", systemImage: "doc.text")
-            }
-
+    private var reviewSection: some View {
+        navigationSection(title: "Review") {
             NavigationLink {
                 PastSessionsView()
             } label: {
@@ -101,11 +97,36 @@ struct HomeView: View {
             } label: {
                 SecondaryButton("Insights", systemImage: "chart.line.uptrend.xyaxis")
             }
+        }
+    }
+
+    private var manageSection: some View {
+        navigationSection(title: "Manage") {
+            NavigationLink {
+                NotificationSchedulesView()
+            } label: {
+                SecondaryButton("Reminders", systemImage: "bell.badge")
+            }
 
             NavigationLink {
                 SettingsView()
             } label: {
                 SecondaryButton("Settings", systemImage: "gearshape")
+            }
+        }
+    }
+
+    private func navigationSection<Content: View>(
+        title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
+            SectionHeader(title)
+
+            AppCard {
+                VStack(spacing: AppTheme.Spacing.medium) {
+                    content()
+                }
             }
         }
     }
@@ -135,9 +156,10 @@ private struct SecondaryActionButtonStyle: ButtonStyle {
 
 #Preview {
     HomeView()
-        .environmentObject(AuthService())
+        .environmentObject(AuthService(restoreSessionOnInit: false))
         .environmentObject(SessionStore())
         .environmentObject(StreakStore())
         .environmentObject(UserStatsStore())
         .environmentObject(AppearanceStore())
+        .environmentObject(NotificationScheduleStore())
 }

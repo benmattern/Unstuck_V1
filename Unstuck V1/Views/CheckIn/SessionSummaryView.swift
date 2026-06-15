@@ -146,7 +146,7 @@ struct SessionSummaryView: View {
             ],
             onSaved: {}
         )
-        .environmentObject(AuthService())
+        .environmentObject(AuthService(restoreSessionOnInit: false))
         .environmentObject(SessionStore())
         .environmentObject(StreakStore())
         .environmentObject(UserStatsStore())

@@ -34,22 +34,15 @@ struct ActionCard: View {
                         CheckInFlowView(form: SampleForms.shortCheckIn)
                     } label: {
                         PrimaryButton(
-                            hasCompletedToday ? "Start Another Check-In" : "Start Short Check-In",
+                            hasCompletedToday ? "Start Another Short Check-In" : "Start Short Check-In",
                             systemImage: "arrow.up.circle.fill"
                         )
                     }
 
                     NavigationLink {
-                        if hasCompletedToday {
-                            InsightsView()
-                        } else {
-                            CheckInFlowView(form: SampleForms.mainForm)
-                        }
+                        CheckInFlowView(form: SampleForms.mainForm)
                     } label: {
-                        SecondaryButton(
-                            hasCompletedToday ? "View Insights" : "Start Main Form",
-                            systemImage: hasCompletedToday ? "chart.line.uptrend.xyaxis" : "doc.text"
-                        )
+                        SecondaryButton("Start Main Form", systemImage: "doc.text")
                     }
                 }
             }
@@ -60,7 +53,7 @@ struct ActionCard: View {
 #Preview {
     NavigationStack {
         ActionCard()
-            .environmentObject(AuthService())
+            .environmentObject(AuthService(restoreSessionOnInit: false))
             .environmentObject(SessionStore())
             .environmentObject(StreakStore())
             .environmentObject(UserStatsStore())

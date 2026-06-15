@@ -92,7 +92,7 @@ private extension View {
 
 #Preview {
     AuthView()
-        .environmentObject(AuthService())
+        .environmentObject(AuthService(restoreSessionOnInit: false))
         .environmentObject(SessionStore())
         .environmentObject(StreakStore())
         .environmentObject(AppearanceStore())

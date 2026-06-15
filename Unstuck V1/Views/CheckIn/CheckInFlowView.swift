@@ -308,7 +308,7 @@ private struct ChoiceButtonStyle: ButtonStyle {
 #Preview {
     NavigationStack {
         CheckInFlowView(form: SampleForms.shortCheckIn)
-            .environmentObject(AuthService())
+            .environmentObject(AuthService(restoreSessionOnInit: false))
             .environmentObject(SessionStore())
             .environmentObject(StreakStore())
             .environmentObject(UserStatsStore())

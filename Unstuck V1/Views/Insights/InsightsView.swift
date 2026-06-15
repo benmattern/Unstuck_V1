@@ -138,7 +138,7 @@ struct InsightsView: View {
 #Preview {
     NavigationStack {
         InsightsView()
-            .environmentObject(AuthService())
+            .environmentObject(AuthService(restoreSessionOnInit: false))
             .environmentObject(SessionStore())
             .environmentObject(StreakStore())
             .environmentObject(AppearanceStore())

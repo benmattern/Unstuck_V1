@@ -71,6 +71,51 @@ final class NotificationScheduleStore: ObservableObject {
         }
     }
 
+    func updateSchedule(
+        _ schedule: NotificationSchedule,
+        title: String,
+        isEnabled: Bool,
+        scheduleType: NotificationScheduleType,
+        scheduledAt: Date?,
+        scheduledTime: String?,
+        formType: NotificationScheduleFormType
+    ) async {
+        isLoading = true
+        defer { isLoading = false }
+
+        let payload = NotificationScheduleUpdate(
+            title: title,
+            is_enabled: isEnabled,
+            schedule_type: scheduleType.rawValue,
+            scheduled_at: scheduledAt,
+            scheduled_time: scheduledTime,
+            form_type: formType.rawValue,
+            updated_at: Date()
+        )
+
+        do {
+            let response: PostgrestResponse<NotificationSchedule> = try await supabase
+                .from("notification_schedules")
+                .update(payload)
+                .eq("id", value: schedule.id.uuidString)
+                .select()
+                .single()
+                .execute()
+
+            replaceSchedule(response.value)
+            errorMessage = nil
+
+            if response.value.isEnabled {
+                try await NotificationManager.scheduleNotification(for: response.value)
+            } else {
+                NotificationManager.cancelNotification(identifier: response.value.id.uuidString)
+            }
+        } catch {
+            errorMessage = "Unable to update notification schedule."
+            print("Supabase notification schedule update failed: \(error)")
+        }
+    }
+
     func updateScheduleEnabled(_ schedule: NotificationSchedule, isEnabled: Bool) async {
         isLoading = true
         defer { isLoading = false }
@@ -141,6 +186,16 @@ final class NotificationScheduleStore: ObservableObject {
 
 private struct NotificationScheduleInsert: Encodable {
     let user_id: UUID
+    let title: String
+    let is_enabled: Bool
+    let schedule_type: String
+    let scheduled_at: Date?
+    let scheduled_time: String?
+    let form_type: String
+    let updated_at: Date
+}
+
+private struct NotificationScheduleUpdate: Encodable {
     let title: String
     let is_enabled: Bool
     let schedule_type: String

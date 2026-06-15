@@ -18,7 +18,6 @@ struct SettingsView: View {
                 appInfoCard
                 accountSection
                 appearanceSection
-                notificationsSection
                 localDataSection
             }
             .padding(AppTheme.Spacing.large)
@@ -211,31 +210,12 @@ struct SettingsView: View {
         }
     }
 
-    private var notificationsSection: some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
-            SectionHeader("Notifications", subtitle: "Manage Supabase-backed reminders.")
-
-            NavigationLink {
-                NotificationSchedulesView()
-            } label: {
-                SecondaryButton("Notification Schedules", systemImage: "bell.badge")
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
-                NotificationSettingsView()
-            } label: {
-                SecondaryButton("Legacy Daily Reminder", systemImage: "bell")
-            }
-            .buttonStyle(.plain)
-        }
-    }
 }
 
 #Preview {
     NavigationStack {
         SettingsView()
-            .environmentObject(AuthService())
+            .environmentObject(AuthService(restoreSessionOnInit: false))
             .environmentObject(SessionStore())
             .environmentObject(StreakStore())
             .environmentObject(UserStatsStore())

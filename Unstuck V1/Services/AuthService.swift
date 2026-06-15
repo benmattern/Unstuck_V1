@@ -9,7 +9,12 @@ final class AuthService: ObservableObject {
     @Published var currentUser: User?
     @Published var errorMessage: String?
 
-    init() {
+    init(restoreSessionOnInit: Bool = true) {
+        guard restoreSessionOnInit else {
+            isLoading = false
+            return
+        }
+
         Task {
             await restoreSession()
         }
