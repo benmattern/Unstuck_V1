@@ -7,6 +7,7 @@ struct SettingsView: View {
     @EnvironmentObject private var streakStore: StreakStore
     @EnvironmentObject private var appearanceStore: AppearanceStore
     @EnvironmentObject private var profileStore: ProfileStore
+    @EnvironmentObject private var userStatsStore: UserStatsStore
     @State private var displayNameDraft = ""
     @State private var showingDeleteSessionsConfirmation = false
     @State private var showingResetStreakConfirmation = false
@@ -52,7 +53,16 @@ struct SettingsView: View {
         }
         .alert("Reset streak?", isPresented: $showingResetStreakConfirmation) {
             Button("Reset Streak", role: .destructive) {
-                streakStore.reset()
+                guard let userId = authService.currentUser?.id else {
+                    userStatsStore.clear()
+                    streakStore.reset()
+                    return
+                }
+
+                Task {
+                    await userStatsStore.resetStats(userId: userId)
+                    streakStore.reset()
+                }
             }
 
             Button("Cancel", role: .cancel) {}
@@ -228,6 +238,7 @@ struct SettingsView: View {
             .environmentObject(AuthService())
             .environmentObject(SessionStore())
             .environmentObject(StreakStore())
+            .environmentObject(UserStatsStore())
             .environmentObject(AppearanceStore())
             .environmentObject(ProfileStore())
             .environmentObject(NotificationScheduleStore())

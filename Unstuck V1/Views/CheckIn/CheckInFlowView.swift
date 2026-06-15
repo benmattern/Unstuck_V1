@@ -311,6 +311,7 @@ private struct ChoiceButtonStyle: ButtonStyle {
             .environmentObject(AuthService())
             .environmentObject(SessionStore())
             .environmentObject(StreakStore())
+            .environmentObject(UserStatsStore())
             .environmentObject(AppearanceStore())
     }
 }

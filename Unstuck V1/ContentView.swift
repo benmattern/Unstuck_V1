@@ -52,15 +52,15 @@ struct ContentView: View {
 struct HomeView: View {
     @EnvironmentObject private var authService: AuthService
     @EnvironmentObject private var sessionStore: SessionStore
-    @EnvironmentObject private var streakStore: StreakStore
+    @EnvironmentObject private var userStatsStore: UserStatsStore
 
     private var currentStreakText: String {
-        let currentStreak = streakStore.state.currentStreak
+        let currentStreak = userStatsStore.currentStreak
         return "\(currentStreak) \(currentStreak == 1 ? "day" : "days")"
     }
 
     private var completedTodayText: String {
-        streakStore.state.completedToday ? "Yes" : "No"
+        userStatsStore.completedToday ? "Yes" : "No"
     }
 
     var body: some View {
@@ -236,5 +236,6 @@ struct PlaceholderScreenView: View {
         .environmentObject(AuthService())
         .environmentObject(SessionStore())
         .environmentObject(StreakStore())
+        .environmentObject(UserStatsStore())
         .environmentObject(AppearanceStore())
 }

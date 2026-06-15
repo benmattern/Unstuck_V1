@@ -2,16 +2,16 @@ import SwiftUI
 
 struct ActionCard: View {
     @EnvironmentObject private var sessionStore: SessionStore
-    @EnvironmentObject private var streakStore: StreakStore
+    @EnvironmentObject private var userStatsStore: UserStatsStore
 
     private var hasCompletedToday: Bool {
-        streakStore.state.completedToday || sessionStore.sessions.contains {
+        userStatsStore.completedToday || sessionStore.sessions.contains {
             Calendar.current.isDateInToday($0.completedAt)
         }
     }
 
     private var currentStreakText: String {
-        let currentStreak = streakStore.state.currentStreak
+        let currentStreak = userStatsStore.currentStreak
         return "\(currentStreak) \(currentStreak == 1 ? "day" : "days")"
     }
 
@@ -63,6 +63,7 @@ struct ActionCard: View {
             .environmentObject(AuthService())
             .environmentObject(SessionStore())
             .environmentObject(StreakStore())
+            .environmentObject(UserStatsStore())
             .environmentObject(AppearanceStore())
             .padding()
     }

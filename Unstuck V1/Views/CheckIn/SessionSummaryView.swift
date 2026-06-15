@@ -9,7 +9,7 @@ struct SessionSummaryView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var authService: AuthService
     @EnvironmentObject private var sessionStore: SessionStore
-    @EnvironmentObject private var streakStore: StreakStore
+    @EnvironmentObject private var userStatsStore: UserStatsStore
     @State private var isSaving = false
 
     private var answeredQuestions: [(question: FormQuestion, answer: String)] {
@@ -118,12 +118,16 @@ struct SessionSummaryView: View {
         isSaving = true
 
         Task {
+            let userId = authService.currentUser?.id
             await sessionStore.saveSession(
                 form: form,
                 answers: answers,
-                userId: authService.currentUser?.id
+                userId: userId
             )
-            streakStore.recordCompletion()
+
+            if let userId {
+                await userStatsStore.recordCompletion(userId: userId)
+            }
             onSaved()
             isSaving = false
             dismiss()
@@ -145,6 +149,7 @@ struct SessionSummaryView: View {
         .environmentObject(AuthService())
         .environmentObject(SessionStore())
         .environmentObject(StreakStore())
+        .environmentObject(UserStatsStore())
         .environmentObject(AppearanceStore())
     }
 }
